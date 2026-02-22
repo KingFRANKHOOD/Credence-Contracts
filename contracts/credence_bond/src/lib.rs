@@ -156,4 +156,7 @@ impl CredenceBond {
 mod test;
 
 #[cfg(test)]
+mod test_create_bond;
+
+#[cfg(test)]
 mod security;
