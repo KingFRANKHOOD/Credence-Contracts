@@ -49,7 +49,9 @@ impl CredenceBond {
         admin.require_auth();
         e.storage().instance().set(&DataKey::Admin, &admin);
         // Keep legacy admin key for shared access-control helpers.
-        e.storage().instance().set(&Symbol::new(&e, "admin"), &admin);
+        e.storage()
+            .instance()
+            .set(&Symbol::new(&e, "admin"), &admin);
     }
 
     /// Register an authorized attester (only admin can call).
