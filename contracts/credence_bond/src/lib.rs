@@ -459,12 +459,18 @@ impl CredenceBond {
             .get::<_, IdentityBond>(&key)
             .unwrap_or_else(|| panic!("no bond"));
 
-        // Perform top-up with overflow protection
-        let old_tier = tiered_bond::get_tier_for_amount(bond.bonded_amount);
-        bond.bonded_amount = bond
+        // Calculate the new bonded amount after top-up
+        let new_bonded_amount = bond
             .bonded_amount
             .checked_add(amount)
             .expect("top-up caused overflow");
+            
+        // Validate the new total bonded amount is within limits
+        validation::validate_bond_amount(new_bonded_amount);
+
+        // Perform top-up with overflow protection
+        let old_tier = tiered_bond::get_tier_for_amount(bond.bonded_amount);
+        bond.bonded_amount = new_bonded_amount;
 
         let new_tier = tiered_bond::get_tier_for_amount(bond.bonded_amount);
         tiered_bond::emit_tier_change_if_needed(&e, &bond.identity, old_tier, new_tier);
