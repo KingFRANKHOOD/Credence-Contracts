@@ -19,10 +19,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
-          components: rustfmt
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt
+          rustup default stable
+          rustc -V
+          cargo -V
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -52,9 +53,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc -V
+          cargo -V
 
       - name: Cache cargo
         uses: actions/cache@v4
