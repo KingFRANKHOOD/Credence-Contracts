@@ -1,5 +1,6 @@
 #![no_std]
 
+mod batch;
 mod early_exit_penalty;
 mod nonce;
 mod rolling_bond;
@@ -9,7 +10,9 @@ mod weighted_attestation;
 
 pub mod types;
 
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Symbol, Vec};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, Address, Env, IntoVal, String, Symbol, Val, Vec,
+};
 
 /// Identity tier based on bonded amount (Bronze < Silver < Gold < Platinum).
 #[contracttype]
@@ -40,6 +43,9 @@ pub struct IdentityBond {
 
 // Re-export attestation type (definitions and validation in types::attestation).
 pub use types::Attestation;
+
+// Re-export batch types
+pub use batch::{BatchBondParams, BatchBondResult};
 
 #[contracttype]
 pub enum DataKey {
@@ -597,13 +603,10 @@ impl CredenceBond {
             bond_start: bond.bond_start,
             bond_duration: bond.bond_duration,
             slashed_amount: bond.slashed_amount,
-            is_rolling: bond.is_rolling,
-            notice_period: bond.notice_period,
-            withdrawal_requested_at: bond.withdrawal_requested_at,
             active: false,
             is_rolling: bond.is_rolling,
             withdrawal_requested_at: bond.withdrawal_requested_at,
-            notice_period: bond.notice_period,
+            notice_period_duration: bond.notice_period_duration,
         };
         e.storage().instance().set(&bond_key, &updated);
 
@@ -661,13 +664,10 @@ impl CredenceBond {
             bond_start: bond.bond_start,
             bond_duration: bond.bond_duration,
             slashed_amount: new_slashed,
-            is_rolling: bond.is_rolling,
-            notice_period: bond.notice_period,
-            withdrawal_requested_at: bond.withdrawal_requested_at,
             active: bond.active,
             is_rolling: bond.is_rolling,
             withdrawal_requested_at: bond.withdrawal_requested_at,
-            notice_period: bond.notice_period,
+            notice_period_duration: bond.notice_period_duration,
         };
         e.storage().instance().set(&bond_key, &updated);
 
@@ -749,6 +749,68 @@ impl CredenceBond {
         let key = Symbol::new(e, "locked");
         e.storage().instance().get(&key).unwrap_or(false)
     }
+
+    // ==================== Batch Operations ====================
+
+    /// Create multiple bonds atomically in a single transaction.
+    ///
+    /// All bonds are validated before any are created. If any bond fails validation,
+    /// the entire batch is rejected (all-or-nothing atomicity).
+    ///
+    /// @param e Contract environment
+    /// @param params_list Vector of bond creation parameters
+    /// @return BatchBondResult containing created count and bond list
+    ///
+    /// # Panics
+    /// * If validation fails for any bond
+    /// * If params_list is empty
+    /// * If a bond already exists for any identity
+    ///
+    /// # Events
+    /// Emits `batch_bonds_created` with the batch result
+    ///
+    /// # Example
+    /// ```ignore
+    /// let params = vec![
+    ///     BatchBondParams {
+    ///         identity: addr1,
+    ///         amount: 1000,
+    ///         duration: 86400,
+    ///         is_rolling: false,
+    ///         notice_period_duration: 0,
+    ///     },
+    /// ];
+    /// let result = client.create_batch_bonds(&params);
+    /// assert_eq!(result.created_count, 1);
+    /// ```
+    pub fn create_batch_bonds(e: Env, params_list: Vec<BatchBondParams>) -> BatchBondResult {
+        batch::create_batch_bonds(&e, params_list)
+    }
+
+    /// Validate a batch of bonds without creating them.
+    ///
+    /// Useful for pre-flight checks before submitting a batch transaction.
+    ///
+    /// @param e Contract environment
+    /// @param params_list Vector of bond creation parameters to validate
+    /// @return true if all bonds are valid
+    ///
+    /// # Panics
+    /// * If any bond has invalid parameters
+    pub fn validate_batch_bonds(e: Env, params_list: Vec<BatchBondParams>) -> bool {
+        batch::validate_batch(&e, params_list)
+    }
+
+    /// Get the total bonded amount across a batch.
+    ///
+    /// @param params_list Vector of bond creation parameters
+    /// @return Total amount across all bonds
+    ///
+    /// # Panics
+    /// * If the total would overflow i128
+    pub fn get_batch_total_amount(params_list: Vec<BatchBondParams>) -> i128 {
+        batch::get_batch_total_amount(&params_list)
+    }
 }
 
 #[cfg(test)]
@@ -756,6 +818,9 @@ mod test;
 
 #[cfg(test)]
 mod test_attestation;
+
+#[cfg(test)]
+mod test_batch;
 
 #[cfg(test)]
 mod test_attestation_types;
