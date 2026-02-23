@@ -41,6 +41,7 @@ pub enum DataKey {
     Attestation(u64),
     AttestationCounter,
     SubjectAttestations(Address),
+    DuplicateCheck(Address, Address, String),
 }
 
 #[contracttype]
@@ -179,6 +180,16 @@ impl CredenceBond {
             panic!("unauthorized attester");
         }
 
+        // 2. NEW: Duplicate Check Logic
+        // We create a unique key based on the content of the attestation
+        let dup_key =
+            DataKey::DuplicateCheck(attester.clone(), subject.clone(), attestation_data.clone());
+
+        if e.storage().instance().has(&dup_key) {
+            panic!("duplicate attestation");
+        }
+        // --- THE FIX: Mark this as "seen" so the NEXT call fails ---
+        e.storage().instance().set(&dup_key, &true);
         // Get and increment attestation counter
         let counter_key = DataKey::AttestationCounter;
         let id: u64 = e.storage().instance().get(&counter_key).unwrap_or(0);

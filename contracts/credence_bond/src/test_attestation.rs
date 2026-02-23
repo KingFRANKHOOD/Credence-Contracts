@@ -266,19 +266,11 @@ fn test_unregistered_attester_cannot_attest() {
     client.register_attester(&attester);
 
     let subject = Address::generate(&e);
-    client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "ok")
-    );
+    client.add_attestation(&attester, &subject, &String::from_str(&e, "ok"));
 
     client.unregister_attester(&attester);
 
-    client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "should fail")
-    );
+    client.add_attestation(&attester, &subject, &String::from_str(&e, "should fail"));
 }
 
 // ============================================================================
@@ -329,11 +321,7 @@ fn test_revoke_wrong_attester() {
     client.register_attester(&att2);
 
     let subject = Address::generate(&e);
-    let att = client.add_attestation(
-        &att1,
-        &subject,
-        &String::from_str(&e, "test")
-    );
+    let att = client.add_attestation(&att1, &subject, &String::from_str(&e, "test"));
 
     client.revoke_attestation(&att2, &att.id);
 }
@@ -354,11 +342,7 @@ fn test_revoke_twice() {
     client.register_attester(&attester);
 
     let subject = Address::generate(&e);
-    let att = client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "test")
-    );
+    let att = client.add_attestation(&attester, &subject, &String::from_str(&e, "test"));
 
     client.revoke_attestation(&attester, &att.id);
     client.revoke_attestation(&attester, &att.id);
@@ -424,16 +408,8 @@ fn test_same_attester_different_data_gets_unique_id() {
 
     let subject = Address::generate(&e);
 
-    let att1 = client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "data1")
-    );
-    let att2 = client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "data2")
-    );
+    let att1 = client.add_attestation(&attester, &subject, &String::from_str(&e, "data1"));
+    let att2 = client.add_attestation(&attester, &subject, &String::from_str(&e, "data2"));
 
     assert_ne!(att1.id, att2.id);
 }
@@ -454,21 +430,9 @@ fn test_same_attester_multiple_for_subject() {
 
     let subject = Address::generate(&e);
 
-    client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "1")
-    );
-    client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "2")
-    );
-    client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "3")
-    );
+    client.add_attestation(&attester, &subject, &String::from_str(&e, "1"));
+    client.add_attestation(&attester, &subject, &String::from_str(&e, "2"));
+    client.add_attestation(&attester, &subject, &String::from_str(&e, "3"));
 
     let atts = client.get_subject_attestations(&subject);
     assert_eq!(atts.len(), 3);
@@ -493,11 +457,7 @@ fn test_events_published() {
     client.register_attester(&attester);
 
     let subject = Address::generate(&e);
-    let att = client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "test")
-    );
+    let att = client.add_attestation(&attester, &subject, &String::from_str(&e, "test"));
     client.revoke_attestation(&attester, &att.id);
 
     // Events are published during operations (verified by no panics)
@@ -563,21 +523,9 @@ fn test_get_subject_attestations() {
 
     let subject = Address::generate(&e);
 
-    client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "1")
-    );
-    client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "2")
-    );
-    client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "3")
-    );
+    client.add_attestation(&attester, &subject, &String::from_str(&e, "1"));
+    client.add_attestation(&attester, &subject, &String::from_str(&e, "2"));
+    client.add_attestation(&attester, &subject, &String::from_str(&e, "3"));
 
     let atts = client.get_subject_attestations(&subject);
     assert_eq!(atts.len(), 3);
@@ -617,21 +565,9 @@ fn test_get_subject_attestations_different_subjects() {
     let sub1 = Address::generate(&e);
     let sub2 = Address::generate(&e);
 
-    client.add_attestation(
-        &attester,
-        &sub1,
-        &String::from_str(&e, "s1_1")
-    );
-    client.add_attestation(
-        &attester,
-        &sub1,
-        &String::from_str(&e, "s1_2")
-    );
-    client.add_attestation(
-        &attester,
-        &sub2,
-        &String::from_str(&e, "s2_1")
-    );
+    client.add_attestation(&attester, &sub1, &String::from_str(&e, "s1_1"));
+    client.add_attestation(&attester, &sub1, &String::from_str(&e, "s1_2"));
+    client.add_attestation(&attester, &sub2, &String::from_str(&e, "s2_1"));
 
     let s1_atts = client.get_subject_attestations(&sub1);
     let s2_atts = client.get_subject_attestations(&sub2);
@@ -658,11 +594,7 @@ fn test_self_attestation() {
     let address = Address::generate(&e);
     client.register_attester(&address);
 
-    let att = client.add_attestation(
-        &address,
-        &address,
-        &String::from_str(&e, "self")
-    );
+    let att = client.add_attestation(&address, &address, &String::from_str(&e, "self"));
 
     // FIX: Change 'verifier' to 'attester' and 'identity' to 'subject'
     assert_eq!(att.attester, att.subject);
@@ -683,11 +615,7 @@ fn test_timestamp_set() {
     client.register_attester(&attester);
 
     let subject = Address::generate(&e);
-    let att = client.add_attestation(
-        &attester,
-        &subject,
-        &String::from_str(&e, "test")
-    );
+    let att = client.add_attestation(&attester, &subject, &String::from_str(&e, "test"));
 
     assert_eq!(att.timestamp, e.ledger().timestamp());
 }
@@ -744,31 +672,11 @@ fn test_complex_scenario() {
     let sub2 = Address::generate(&e);
 
     // Add attestations
-    let a1 = client.add_attestation(
-        &att1,
-        &sub1,
-        &String::from_str(&e, "a1s1_1")
-    );
-    let a2 = client.add_attestation(
-        &att1,
-        &sub1,
-        &String::from_str(&e, "a1s1_2")
-    );
-    let _a3 = client.add_attestation(
-        &att2,
-        &sub1,
-        &String::from_str(&e, "a2s1")
-    );
-    let _a4 = client.add_attestation(
-        &att2,
-        &sub2,
-        &String::from_str(&e, "a2s2")
-    );
-    let _a5 = client.add_attestation(
-        &att3,
-        &sub2,
-        &String::from_str(&e, "a3s2")
-    );
+    let a1 = client.add_attestation(&att1, &sub1, &String::from_str(&e, "a1s1_1"));
+    let a2 = client.add_attestation(&att1, &sub1, &String::from_str(&e, "a1s1_2"));
+    let _a3 = client.add_attestation(&att2, &sub1, &String::from_str(&e, "a2s1"));
+    let _a4 = client.add_attestation(&att2, &sub2, &String::from_str(&e, "a2s2"));
+    let _a5 = client.add_attestation(&att3, &sub2, &String::from_str(&e, "a3s2"));
 
     // Revoke one
     client.revoke_attestation(&att1, &a1.id);
