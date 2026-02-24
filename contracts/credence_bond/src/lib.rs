@@ -920,7 +920,6 @@ impl CredenceBond {
         Self::release_lock(&e);
         fees
     }
-
 }
 
 #[cfg(test)]
