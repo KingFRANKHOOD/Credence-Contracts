@@ -59,11 +59,7 @@ pub fn calculate_penalty(
         "early exit penalty overflow",
         "early exit penalty div-by-zero",
     );
-    let scaled = math::mul_i128(
-        base,
-        remaining_time as i128,
-        "early exit penalty overflow",
-    );
+    let scaled = math::mul_i128(base, remaining_time as i128, "early exit penalty overflow");
     math::div_i128(
         scaled,
         total_duration as i128,
