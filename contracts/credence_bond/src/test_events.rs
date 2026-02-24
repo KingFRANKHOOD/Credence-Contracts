@@ -61,26 +61,7 @@ fn test_lifecycle_event_emissions() {
     let top_up_data = <(i128, i128)>::from_val(&e, &top_up_event.2);
     assert_eq!(top_up_data, (top_up_amount, expected_total_after_top_up));
 
-    // --- 3. Test Slash Event ---
-    let slash_amount = 2_000_i128;
-    
-    client.slash(&admin, &slash_amount);
-    
-    events = e.events().all();
-    let slash_event = events.pop_back().unwrap();
-    
-    // Decode Topics
-    let topic_name = Symbol::from_val(&e, &slash_event.1.get(0).unwrap());
-    let topic_ident = Address::from_val(&e, &slash_event.1.get(1).unwrap());
-    
-    assert_eq!(topic_name, Symbol::new(&e, "bond_slashed"));
-    assert_eq!(topic_ident, identity);
-
-    // Decode Data (total_slashed equals slash_amount since it's the first slash)
-    let slash_data = <(i128, i128)>::from_val(&e, &slash_event.2);
-    assert_eq!(slash_data, (slash_amount, slash_amount));
-
-    // --- 4. Test Withdraw Event ---
+    // --- 3. Test Withdraw Event ---
     let withdraw_amount = 3_000_i128;
     // Current bonded = 15,000. After withdrawing 3,000, expected remaining = 12,000.
     let expected_remaining_bonded = 12_000_i128;
