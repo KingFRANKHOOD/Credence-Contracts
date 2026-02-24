@@ -912,8 +912,8 @@ mod test_governance_approval;
 #[cfg(test)]
 mod test_fees;
 
-// #[cfg(test)]
-// mod integration;
+#[cfg(test)]
+mod integration;
 
 #[cfg(test)]
 mod security;
