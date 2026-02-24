@@ -833,9 +833,9 @@ mod test_weighted_attestation;
 #[cfg(test)]
 mod test_replay_prevention;
 
+mod test_governance_approval;
 #[cfg(test)]
 mod test_parameters;
-mod test_governance_approval;
 
 #[cfg(test)]
 mod test_fees;
