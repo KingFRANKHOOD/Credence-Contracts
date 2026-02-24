@@ -1,11 +1,11 @@
 use soroban_sdk::{Address, Env, Symbol};
 
 /// Emitted when a new bond is created.
-/// 
+///
 /// # Topics
 /// * `Symbol` - "bond_created"
 /// * `Address` - The identity owning the bond
-/// 
+///
 /// # Data
 /// * `i128` - The initial bonded amount
 /// * `u64` - The duration of the bond in seconds
@@ -23,11 +23,11 @@ pub fn emit_bond_created(
 }
 
 /// Emitted when an existing bond is increased (topped up).
-/// 
+///
 /// # Topics
 /// * `Symbol` - "bond_increased"
 /// * `Address` - The identity owning the bond
-/// 
+///
 /// # Data
 /// * `i128` - The additional amount added
 /// * `i128` - The new total bonded amount
@@ -38,11 +38,11 @@ pub fn emit_bond_increased(e: &Env, identity: &Address, added_amount: i128, new_
 }
 
 /// Emitted when funds are successfully withdrawn from a bond.
-/// 
+///
 /// # Topics
 /// * `Symbol` - "bond_withdrawn"
 /// * `Address` - The identity owning the bond
-/// 
+///
 /// # Data
 /// * `i128` - The amount withdrawn
 /// * `i128` - The remaining bonded amount
@@ -53,11 +53,11 @@ pub fn emit_bond_withdrawn(e: &Env, identity: &Address, amount_withdrawn: i128, 
 }
 
 /// Emitted when a bond is slashed by an admin.
-/// 
+///
 /// # Topics
 /// * `Symbol` - "bond_slashed"
 /// * `Address` - The identity owning the bond
-/// 
+///
 /// # Data
 /// * `i128` - The amount slashed in this event
 /// * `i128` - The new total slashed amount for this bond
