@@ -1,6 +1,7 @@
 #![no_std]
 
 mod early_exit_penalty;
+mod events;
 mod nonce;
 mod rolling_bond;
 mod slashing;
@@ -154,6 +155,8 @@ impl CredenceBond {
         e.storage().instance().set(&key, &bond);
         let tier = tiered_bond::get_tier_for_amount(amount);
         tiered_bond::emit_tier_change_if_needed(&e, &identity, BondTier::Bronze, tier);
+
+        events::emit_bond_created(&e, &identity, amount, duration, is_rolling);
         bond
     }
 
@@ -389,6 +392,8 @@ impl CredenceBond {
         }
 
         e.storage().instance().set(&key, &bond);
+
+        events::emit_bond_withdrawn(&e, &bond.identity, amount, bond.bonded_amount);
         bond
     }
 
@@ -439,6 +444,7 @@ impl CredenceBond {
         tiered_bond::emit_tier_change_if_needed(&e, &bond.identity, old_tier, new_tier);
 
         e.storage().instance().set(&key, &bond);
+        events::emit_bond_withdrawn(&e, &bond.identity, amount, bond.bonded_amount);
         bond
     }
 
@@ -531,6 +537,7 @@ impl CredenceBond {
             .expect("top-up caused overflow");
 
         e.storage().instance().set(&key, &bond);
+        events::emit_bond_increased(&e, &bond.identity, amount, bond.bonded_amount);
         bond
     }
 
@@ -616,6 +623,7 @@ impl CredenceBond {
             e.invoke_contract::<Val>(&cb_addr, &fn_name, args);
         }
 
+        events::emit_bond_withdrawn(&e, &identity, withdraw_amount, 0);
         Self::release_lock(&e);
         withdraw_amount
     }
@@ -679,6 +687,7 @@ impl CredenceBond {
             e.invoke_contract::<Val>(&cb_addr, &fn_name, args);
         }
 
+        events::emit_bond_slashed(&e, &bond.identity, slash_amount, new_slashed);
         Self::release_lock(&e);
         new_slashed
     }
@@ -768,3 +777,6 @@ mod test_replay_prevention;
 
 #[cfg(test)]
 mod security;
+
+#[cfg(test)]
+mod test_events;
