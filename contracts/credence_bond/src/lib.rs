@@ -9,7 +9,9 @@ mod weighted_attestation;
 
 pub mod types;
 
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Symbol, Vec, IntoVal, Val};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, Address, Env, IntoVal, String, Symbol, Val, Vec,
+};
 
 /// Identity tier based on bonded amount (Bronze < Silver < Gold < Platinum).
 #[contracttype]
