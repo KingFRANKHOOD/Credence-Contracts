@@ -695,15 +695,6 @@ impl CredenceBond {
         fees::get_config(&e)
     }
 
-pub fn collect_fees(e: Env, admin: Address) -> i128 {
-        pausable::require_not_paused(&e);
-        Self::require_admin(&e, &admin);
-        let key = Symbol::new(&e, "fees");
-        let collected: i128 = e.storage().instance().get(&key).unwrap_or(0);
-        e.storage().instance().set(&key, &0_i128);
-        collected
-    }
-
     pub fn deposit_fees(e: Env, amount: i128) {
         let key = Symbol::new(&e, "fees");
         let current: i128 = e.storage().instance().get(&key).unwrap_or(0);
@@ -722,39 +713,6 @@ pub fn collect_fees(e: Env, admin: Address) -> i128 {
             .instance()
             .get(&Self::lock_key(&e))
             .unwrap_or(false)
-    }
-
-pub fn withdraw_bond(e: Env, identity: Address) -> i128 {
-        pausable::require_not_paused(&e);
-        let key = DataKey::Bond;
-        Self::with_reentrancy_guard(&e, || {
-            let mut bond: IdentityBond = e
-                .storage()
-                .instance()
-                .get(&key)
-                .unwrap_or_else(|| panic!("no bond"));
-            if bond.identity != identity {
-                panic!("not bond identity");
-            }
-
-            let amount = bond
-                .bonded_amount
-                .checked_sub(bond.slashed_amount)
-                .expect("slashed amount exceeds bonded amount");
-            bond.bonded_amount = 0;
-            bond.active = false;
-            e.storage().instance().set(&key, &bond);
-            amount
-        })
-    }
-
-    pub fn slash_bond(e: Env, admin: Address, amount: i128) -> i128 {
-        pausable::require_not_paused(&e);
-        Self::with_reentrancy_guard(&e, || {
-            let before = Self::get_identity_state(e.clone()).slashed_amount;
-            let after = slashing::slash_bond(&e, &admin, amount).slashed_amount;
-            after.checked_sub(before).expect("slashing delta underflow")
-        })
     }
 
     pub fn get_slash_proposal(

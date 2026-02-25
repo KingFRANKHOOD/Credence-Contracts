@@ -26,19 +26,20 @@ fn test_pause_blocks_state_changes_but_allows_reads() {
     let random_addr = Address::generate(&e);
     assert!(!client.is_attester(&random_addr));
 
-    // State changes should fail
-    let identity = Address::generate(&e);
-    assert!(client
-        .try_create_bond(&identity, &1000_i128, &86400_u64, &false, &0_u64)
-        .is_err());
-
+    // State changes should fail - test functions that don't require token setup
     let attester = Address::generate(&e);
     assert!(client.try_register_attester(&attester).is_err());
+    
+    // Test fee config changes (admin function that should be paused)
+    let treasury = Address::generate(&e);
+    assert!(client.try_set_fee_config(&admin, &treasury, &100_u32).is_err());
 
     client.unpause(&admin);
     assert!(!client.is_paused());
 
-    client.create_bond(&identity, &1000_i128, &86400_u64, &false, &0_u64);
+    // Now these should work
+    client.register_attester(&attester);
+    client.set_fee_config(&admin, &treasury, &100_u32);
 }
 
 #[test]
