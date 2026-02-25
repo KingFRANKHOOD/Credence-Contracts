@@ -1244,9 +1244,9 @@ mod test_duration_validation;
 #[cfg(test)]
 mod test_access_control;
 
+mod test_cooldown;
 #[cfg(test)]
 mod test_events;
-mod test_cooldown;
 
 #[cfg(test)]
 mod test_early_exit_penalty;
