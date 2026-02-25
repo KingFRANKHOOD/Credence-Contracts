@@ -9,6 +9,7 @@ mod nonce;
 mod rolling_bond;
 mod slash_history;
 mod slashing;
+mod token_integration;
 pub mod tiered_bond;
 mod weighted_attestation;
 
@@ -20,8 +21,6 @@ use crate::access_control::{
 use soroban_sdk::{
     contract, contractimpl, contracttype, Address, Env, IntoVal, String, Symbol, Val, Vec,
 };
-
-use soroban_sdk::token::TokenClient;
 
 pub use types::Attestation;
 
@@ -183,16 +182,23 @@ impl CredenceBond {
     /// Set the token contract address (admin only). Required before `create_bond`, `top_up`,
     /// and `withdraw_bond`.
     pub fn set_token(e: Env, admin: Address, token: Address) {
-        let stored_admin: Address = e
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .unwrap_or_else(|| panic!("not initialized"));
-        admin.require_auth();
-        if admin != stored_admin {
-            panic!("not admin");
-        }
-        e.storage().instance().set(&DataKey::Token, &token);
+        token_integration::set_token(&e, &admin, &token);
+    }
+
+    /// @notice Set the USDC token contract and network label (admin only).
+    /// @dev Network label must be either "mainnet" or "testnet".
+    pub fn set_usdc_token(e: Env, admin: Address, token: Address, network: String) {
+        token_integration::set_usdc_token(&e, &admin, &token, &network);
+    }
+
+    /// @notice Return configured USDC token contract address.
+    pub fn get_usdc_token(e: Env) -> Address {
+        token_integration::get_token(&e)
+    }
+
+    /// @notice Return configured USDC network label if set.
+    pub fn get_usdc_network(e: Env) -> Option<String> {
+        token_integration::get_usdc_network(&e)
     }
 
     /// Create a bond for an identity.
@@ -228,13 +234,7 @@ impl CredenceBond {
         if amount < 0 {
             panic!("amount must be non-negative");
         }
-        let token: Address = e
-            .storage()
-            .instance()
-            .get(&DataKey::Token)
-            .unwrap_or_else(|| panic!("token not set"));
-        let contract = e.current_contract_address();
-        TokenClient::new(&e, &token).transfer_from(&contract, &identity, &contract, &amount);
+        token_integration::transfer_into_contract(&e, &identity, amount);
 
         let bond_start = e.ledger().timestamp();
 
@@ -487,13 +487,7 @@ impl CredenceBond {
             panic!("insufficient balance for withdrawal");
         }
 
-        let token: Address = e
-            .storage()
-            .instance()
-            .get(&DataKey::Token)
-            .unwrap_or_else(|| panic!("token not set"));
-        let contract = e.current_contract_address();
-        TokenClient::new(&e, &token).transfer(&contract, &bond.identity, &amount);
+        token_integration::transfer_from_contract(&e, &bond.identity, amount);
 
         let old_tier = tiered_bond::get_tier_for_amount(bond.bonded_amount);
         bond.bonded_amount = bond
@@ -545,17 +539,10 @@ impl CredenceBond {
         );
         early_exit_penalty::emit_penalty_event(&e, &bond.identity, amount, penalty, &treasury);
 
-        let token: Address = e
-            .storage()
-            .instance()
-            .get(&DataKey::Token)
-            .unwrap_or_else(|| panic!("token not set"));
-        let contract = e.current_contract_address();
-        let token_client = TokenClient::new(&e, &token);
         let net_amount = amount.checked_sub(penalty).expect("penalty exceeds amount");
-        token_client.transfer(&contract, &bond.identity, &net_amount);
+        token_integration::transfer_from_contract(&e, &bond.identity, net_amount);
         if penalty > 0 {
-            token_client.transfer(&contract, &treasury, &penalty);
+            token_integration::transfer_from_contract(&e, &treasury, penalty);
         }
         let old_tier = tiered_bond::get_tier_for_amount(bond.bonded_amount);
         bond.bonded_amount = bond
@@ -754,13 +741,7 @@ impl CredenceBond {
             .checked_add(amount)
             .expect("top-up caused overflow");
 
-        let token: Address = e
-            .storage()
-            .instance()
-            .get(&DataKey::Token)
-            .unwrap_or_else(|| panic!("token not set"));
-        let contract = e.current_contract_address();
-        TokenClient::new(&e, &token).transfer_from(&contract, &bond.identity, &contract, &amount);
+        token_integration::transfer_into_contract(&e, &bond.identity, amount);
 
         let old_tier = tiered_bond::get_tier_for_amount(bond.bonded_amount);
         bond.bonded_amount = new_bonded;
@@ -988,3 +969,6 @@ mod test_withdraw_bond;
 
 #[cfg(test)]
 mod test_math;
+
+#[cfg(test)]
+mod token_integration_test;
