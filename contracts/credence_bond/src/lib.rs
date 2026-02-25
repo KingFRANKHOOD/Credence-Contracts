@@ -940,8 +940,6 @@ impl CredenceBond {
     pub fn is_locked(e: Env) -> bool {
         Self::check_lock(&e)
     }
-
-
 }
 
 #[cfg(test)]
