@@ -12,7 +12,7 @@ pub enum PauseAction {
 fn require_admin_auth(e: &Env, admin: &Address) {
     // In admin contract, we need to check if the caller is a SuperAdmin
     use crate::{AdminContract, AdminRole};
-    
+
     let caller_role = AdminContract::get_role(e.clone(), admin.clone());
     if caller_role != AdminRole::SuperAdmin {
         panic!("not super admin");
@@ -250,5 +250,6 @@ fn do_pause(e: &Env, proposal_id: Option<u64>) {
 
 fn do_unpause(e: &Env, proposal_id: Option<u64>) {
     e.storage().instance().set(&DataKey::Paused, &false);
-    e.events().publish((Symbol::new(e, "unpaused"),), proposal_id);
+    e.events()
+        .publish((Symbol::new(e, "unpaused"),), proposal_id);
 }

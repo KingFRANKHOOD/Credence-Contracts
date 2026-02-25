@@ -18,7 +18,7 @@ mod pausable_tests {
         (e, client, super_admin)
     }
 
-#[test]
+    #[test]
     fn test_pause_blocks_state_changes_but_allows_reads() {
         let (e, client, super_admin) = setup();
 

@@ -251,5 +251,6 @@ fn do_pause(e: &Env, proposal_id: Option<u64>) {
 
 fn do_unpause(e: &Env, proposal_id: Option<u64>) {
     e.storage().instance().set(&DataKey::Paused, &false);
-    e.events().publish((Symbol::new(e, "unpaused"),), proposal_id);
+    e.events()
+        .publish((Symbol::new(e, "unpaused"),), proposal_id);
 }

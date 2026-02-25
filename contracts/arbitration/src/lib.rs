@@ -46,9 +46,13 @@ impl CredenceArbitration {
         }
         e.storage().instance().set(&DataKey::Admin, &admin);
         e.storage().instance().set(&DataKey::Paused, &false);
-        e.storage().instance().set(&DataKey::PauseSignerCount, &0_u32);
+        e.storage()
+            .instance()
+            .set(&DataKey::PauseSignerCount, &0_u32);
         e.storage().instance().set(&DataKey::PauseThreshold, &0_u32);
-        e.storage().instance().set(&DataKey::PauseProposalCounter, &0_u64);
+        e.storage()
+            .instance()
+            .set(&DataKey::PauseProposalCounter, &0_u64);
     }
 
     /// Register or update an arbitrator with a specific voting weight.
@@ -141,7 +145,7 @@ impl CredenceArbitration {
             .unwrap_or_else(|| panic!("voter is not an authorized arbitrator"));
 
         // Verify dispute exists and is within voting period
-        let mut dispute: Dispute = e
+        let dispute: Dispute = e
             .storage()
             .instance()
             .get(&DataKey::Dispute(dispute_id))

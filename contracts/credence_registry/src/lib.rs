@@ -75,9 +75,13 @@ impl CredenceRegistry {
 
         e.storage().instance().set(&DataKey::Admin, &admin);
         e.storage().instance().set(&DataKey::Paused, &false);
-        e.storage().instance().set(&DataKey::PauseSignerCount, &0_u32);
+        e.storage()
+            .instance()
+            .set(&DataKey::PauseSignerCount, &0_u32);
         e.storage().instance().set(&DataKey::PauseThreshold, &0_u32);
-        e.storage().instance().set(&DataKey::PauseProposalCounter, &0_u64);
+        e.storage()
+            .instance()
+            .set(&DataKey::PauseProposalCounter, &0_u64);
 
         // Initialize empty registered identities list
         let identities: Vec<Address> = Vec::new(&e);

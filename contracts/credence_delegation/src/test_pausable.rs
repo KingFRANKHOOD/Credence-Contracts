@@ -32,9 +32,7 @@ fn test_pause_blocks_state_changes_but_allows_reads() {
         .try_delegate(&owner, &delegate, &DelegationType::Attestation, &86400_u64)
         .is_err());
 
-    assert!(client
-        .try_revoke_attestation(&owner, &delegate)
-        .is_err());
+    assert!(client.try_revoke_attestation(&owner, &delegate).is_err());
 
     client.unpause(&admin);
     assert!(!client.is_paused());

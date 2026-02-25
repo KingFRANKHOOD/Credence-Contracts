@@ -56,9 +56,13 @@ impl CredenceDelegation {
         }
         e.storage().instance().set(&DataKey::Admin, &admin);
         e.storage().instance().set(&DataKey::Paused, &false);
-        e.storage().instance().set(&DataKey::PauseSignerCount, &0_u32);
+        e.storage()
+            .instance()
+            .set(&DataKey::PauseSignerCount, &0_u32);
         e.storage().instance().set(&DataKey::PauseThreshold, &0_u32);
-        e.storage().instance().set(&DataKey::PauseProposalCounter, &0_u64);
+        e.storage()
+            .instance()
+            .set(&DataKey::PauseProposalCounter, &0_u64);
     }
 
     /// Create a delegation from owner to delegate with a given type and expiry.

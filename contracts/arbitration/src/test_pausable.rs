@@ -27,7 +27,9 @@ fn test_pause_blocks_state_changes_but_allows_reads() {
 
     // State change should fail
     let arbitrator = Address::generate(&env);
-    assert!(client.try_register_arbitrator(&arbitrator, &10_i128).is_err());
+    assert!(client
+        .try_register_arbitrator(&arbitrator, &10_i128)
+        .is_err());
 
     client.unpause(&admin);
     assert!(!client.is_paused());

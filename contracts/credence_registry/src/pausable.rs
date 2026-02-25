@@ -22,7 +22,10 @@ fn require_admin_auth(e: &Env, admin: &Address) {
 }
 
 pub fn is_paused(e: &Env) -> bool {
-    e.storage().instance().get(&DataKey::Paused).unwrap_or(false)
+    e.storage()
+        .instance()
+        .get(&DataKey::Paused)
+        .unwrap_or(false)
 }
 
 pub fn require_not_paused(e: &Env) {
@@ -40,22 +43,40 @@ pub fn set_pause_signer(e: &Env, admin: &Address, signer: &Address, enabled: boo
     if enabled {
         if !existing {
             e.storage().instance().set(&key, &true);
-            let count: u32 = e.storage().instance().get(&DataKey::PauseSignerCount).unwrap_or(0);
+            let count: u32 = e
+                .storage()
+                .instance()
+                .get(&DataKey::PauseSignerCount)
+                .unwrap_or(0);
             e.storage()
                 .instance()
                 .set(&DataKey::PauseSignerCount, &count.saturating_add(1));
         }
     } else if existing {
         e.storage().instance().remove(&key);
-        let count: u32 = e.storage().instance().get(&DataKey::PauseSignerCount).unwrap_or(0);
+        let count: u32 = e
+            .storage()
+            .instance()
+            .get(&DataKey::PauseSignerCount)
+            .unwrap_or(0);
         e.storage()
             .instance()
             .set(&DataKey::PauseSignerCount, &count.saturating_sub(1));
 
-        let threshold: u32 = e.storage().instance().get(&DataKey::PauseThreshold).unwrap_or(0);
-        let new_count: u32 = e.storage().instance().get(&DataKey::PauseSignerCount).unwrap_or(0);
+        let threshold: u32 = e
+            .storage()
+            .instance()
+            .get(&DataKey::PauseThreshold)
+            .unwrap_or(0);
+        let new_count: u32 = e
+            .storage()
+            .instance()
+            .get(&DataKey::PauseSignerCount)
+            .unwrap_or(0);
         if threshold > new_count {
-            e.storage().instance().set(&DataKey::PauseThreshold, &new_count);
+            e.storage()
+                .instance()
+                .set(&DataKey::PauseThreshold, &new_count);
         }
     }
 
@@ -67,11 +88,17 @@ pub fn set_pause_signer(e: &Env, admin: &Address, signer: &Address, enabled: boo
 
 pub fn set_pause_threshold(e: &Env, admin: &Address, threshold: u32) {
     require_admin_auth(e, admin);
-    let count: u32 = e.storage().instance().get(&DataKey::PauseSignerCount).unwrap_or(0);
+    let count: u32 = e
+        .storage()
+        .instance()
+        .get(&DataKey::PauseSignerCount)
+        .unwrap_or(0);
     if threshold > count {
         panic!("threshold cannot exceed signer count");
     }
-    e.storage().instance().set(&DataKey::PauseThreshold, &threshold);
+    e.storage()
+        .instance()
+        .set(&DataKey::PauseThreshold, &threshold);
     e.events()
         .publish((Symbol::new(e, "pause_threshold_set"),), threshold);
 }
@@ -119,7 +146,11 @@ fn record_approval(e: &Env, proposal_id: u64, signer: &Address) {
 }
 
 pub fn pause(e: &Env, caller: &Address) -> Option<u64> {
-    let threshold: u32 = e.storage().instance().get(&DataKey::PauseThreshold).unwrap_or(0);
+    let threshold: u32 = e
+        .storage()
+        .instance()
+        .get(&DataKey::PauseThreshold)
+        .unwrap_or(0);
     if threshold == 0 {
         require_admin_auth(e, caller);
         do_pause(e, None);
@@ -130,7 +161,11 @@ pub fn pause(e: &Env, caller: &Address) -> Option<u64> {
 }
 
 pub fn unpause(e: &Env, caller: &Address) -> Option<u64> {
-    let threshold: u32 = e.storage().instance().get(&DataKey::PauseThreshold).unwrap_or(0);
+    let threshold: u32 = e
+        .storage()
+        .instance()
+        .get(&DataKey::PauseThreshold)
+        .unwrap_or(0);
     if threshold == 0 {
         require_admin_auth(e, caller);
         do_unpause(e, None);
@@ -144,17 +179,17 @@ fn propose_action(e: &Env, caller: &Address, action: PauseAction) -> Option<u64>
     require_pause_signer(e, caller);
 
     let id = next_proposal_id(e);
-    e.storage().instance().set(&DataKey::PauseProposal(id), &(action as u32));
+    e.storage()
+        .instance()
+        .set(&DataKey::PauseProposal(id), &(action as u32));
     e.storage()
         .instance()
         .set(&DataKey::PauseApprovalCount(id), &0_u32);
 
     record_approval(e, id, caller);
 
-    e.events().publish(
-        (Symbol::new(e, "pause_proposed"), id),
-        action as u32,
-    );
+    e.events()
+        .publish((Symbol::new(e, "pause_proposed"), id), action as u32);
 
     Some(id)
 }
@@ -183,7 +218,11 @@ pub fn execute_pause_proposal(e: &Env, proposal_id: u64) {
         .get(&DataKey::PauseProposal(proposal_id))
         .unwrap_or_else(|| panic!("proposal not found"));
 
-    let threshold: u32 = e.storage().instance().get(&DataKey::PauseThreshold).unwrap_or(0);
+    let threshold: u32 = e
+        .storage()
+        .instance()
+        .get(&DataKey::PauseThreshold)
+        .unwrap_or(0);
     let approvals: u32 = e
         .storage()
         .instance()
@@ -200,13 +239,14 @@ pub fn execute_pause_proposal(e: &Env, proposal_id: u64) {
         _ => panic!("invalid pause action"),
     }
 
-    e.storage().instance().remove(&DataKey::PauseProposal(proposal_id));
+    e.storage()
+        .instance()
+        .remove(&DataKey::PauseProposal(proposal_id));
 }
 
 fn do_pause(e: &Env, proposal_id: Option<u64>) {
     e.storage().instance().set(&DataKey::Paused, &true);
-    e.events()
-        .publish((Symbol::new(e, "paused"),), proposal_id);
+    e.events().publish((Symbol::new(e, "paused"),), proposal_id);
 }
 
 fn do_unpause(e: &Env, proposal_id: Option<u64>) {
