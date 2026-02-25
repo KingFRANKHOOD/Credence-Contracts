@@ -147,7 +147,7 @@ impl CredenceBond {
     }
 
     pub fn register_attester(e: Env, attester: Address) {
-        let admin: Address = e
+        let _admin: Address = e
             .storage()
             .instance()
             .get(&DataKey::Admin)
@@ -163,7 +163,7 @@ impl CredenceBond {
     }
 
     pub fn unregister_attester(e: Env, attester: Address) {
-        let admin: Address = e
+        let _admin: Address = e
             .storage()
             .instance()
             .get(&DataKey::Admin)
