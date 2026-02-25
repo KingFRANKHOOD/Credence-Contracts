@@ -60,13 +60,8 @@ fn test_submit_evidence_sha256() {
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     );
 
-    let evidence_id = client.submit_evidence(
-        &submitter,
-        &1_u64,
-        &hash,
-        &EvidenceType::SHA256,
-        &None,
-    );
+    let evidence_id =
+        client.submit_evidence(&submitter, &1_u64, &hash, &EvidenceType::SHA256, &None);
 
     let evidence = client.get_evidence(&evidence_id);
     assert_eq!(evidence.hash_type, EvidenceType::SHA256);
@@ -82,13 +77,7 @@ fn test_submit_evidence_empty_hash() {
     let submitter = Address::generate(&e);
     let empty_hash = String::from_str(&e, "");
 
-    client.submit_evidence(
-        &submitter,
-        &1_u64,
-        &empty_hash,
-        &EvidenceType::IPFS,
-        &None,
-    );
+    client.submit_evidence(&submitter, &1_u64, &empty_hash, &EvidenceType::IPFS, &None);
 }
 
 #[test]
@@ -454,7 +443,10 @@ fn test_evidence_types() {
     // Verify each type
     assert_eq!(client.get_evidence(&ipfs_id).hash_type, EvidenceType::IPFS);
     assert_eq!(client.get_evidence(&sha_id).hash_type, EvidenceType::SHA256);
-    assert_eq!(client.get_evidence(&other_id).hash_type, EvidenceType::Other);
+    assert_eq!(
+        client.get_evidence(&other_id).hash_type,
+        EvidenceType::Other
+    );
 }
 
 #[test]
