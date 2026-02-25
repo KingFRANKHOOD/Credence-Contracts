@@ -45,7 +45,7 @@ fn test_lifecycle_create_then_withdraw() {
 #[test]
 fn test_lifecycle_create_topup_withdraw() {
     let e = Env::default();
-    let (client, admin, identity) = setup(&e);
+    let (client, _admin, identity) = setup(&e);
     let duration = 86400_u64;
     client.create_bond(&identity, &500_i128, &duration, &false, &0_u64);
     let after_topup = client.top_up(&300_i128);

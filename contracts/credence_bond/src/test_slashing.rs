@@ -16,7 +16,7 @@
 //! slash history (via events), and slash events.
 
 use crate::test_helpers;
-use crate::{CredenceBond, CredenceBondClient};
+use crate::CredenceBondClient;
 use soroban_sdk::testutils::{Address as _, Ledger};
 use soroban_sdk::{Address, Env};
 
