@@ -12,6 +12,7 @@ mod rolling_bond;
 mod slash_history;
 mod slashing;
 pub mod tiered_bond;
+mod validation;
 mod weighted_attestation;
 
 pub mod types;
@@ -221,6 +222,8 @@ impl CredenceBond {
         is_rolling: bool,
         notice_period_duration: u64,
     ) -> IdentityBond {
+        // Validate bond duration is within allowed range
+        validation::validate_bond_duration(duration);
         Self::create_bond_with_rolling(
             e,
             identity,
@@ -1227,6 +1230,9 @@ mod integration;
 
 #[cfg(test)]
 mod security;
+
+#[cfg(test)]
+mod test_duration_validation;
 
 #[cfg(test)]
 mod test_access_control;
