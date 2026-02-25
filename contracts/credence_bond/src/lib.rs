@@ -220,7 +220,6 @@ impl CredenceBond {
         notice_period_duration: u64,
     ) -> IdentityBond {
         pausable::require_not_paused(&e);
-        
         if amount < 0 {
             panic!("amount must be non-negative");
         }
