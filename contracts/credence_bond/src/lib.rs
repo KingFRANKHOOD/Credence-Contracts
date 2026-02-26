@@ -10,6 +10,7 @@ mod tiered_bond;
 pub mod access_control;
 mod batch;
 pub mod early_exit_penalty;
+pub mod evidence;
 mod events;
 mod emergency;
 mod fees;
@@ -38,6 +39,7 @@ use soroban_sdk::{
 
 use soroban_sdk::token::TokenClient;
 
+pub use evidence::{Evidence, EvidenceType};
 pub use types::Attestation;
 
 /// Identity tier based on bonded amount (Bronze < Silver < Gold < Platinum).
@@ -125,6 +127,11 @@ pub enum BondTier {
     // Bond creation fee
     FeeTreasury,
     FeeBps,
+    // Evidence storage
+    EvidenceCounter,
+    Evidence(u64),
+    ProposalEvidence(u64),
+    HashExists(String),
     // Pause mechanism
     Paused,
     PauseSigner(Address),
@@ -1169,6 +1176,83 @@ impl CredenceBond {
         bond
     }
 
+    // ==================== Evidence Storage ====================
+
+    /// Submit evidence hash for a slash proposal.
+    ///
+    /// @param e Contract environment
+    /// @param submitter Address submitting the evidence (must be authorized)
+    /// @param proposal_id ID of the slash proposal
+    /// @param hash Content hash (IPFS CID, SHA-256, etc.)
+    /// @param hash_type Type of hash
+    /// @param description Optional description/metadata
+    /// @return Evidence ID
+    ///
+    /// # Panics
+    /// * If hash is empty
+    /// * If hash already exists
+    /// * If submitter is not authorized
+    pub fn submit_evidence(
+        e: Env,
+        submitter: Address,
+        proposal_id: u64,
+        hash: String,
+        hash_type: EvidenceType,
+        description: Option<String>,
+    ) -> u64 {
+        submitter.require_auth();
+        evidence::submit_evidence(&e, &submitter, proposal_id, &hash, &hash_type, &description)
+    }
+
+    /// Get evidence by ID.
+    ///
+    /// @param e Contract environment
+    /// @param evidence_id Unique evidence identifier
+    /// @return Evidence record
+    ///
+    /// # Panics
+    /// If evidence ID does not exist
+    pub fn get_evidence(e: Env, evidence_id: u64) -> Evidence {
+        evidence::get_evidence(&e, evidence_id)
+    }
+
+    /// Get all evidence IDs for a slash proposal.
+    ///
+    /// @param e Contract environment
+    /// @param proposal_id Slash proposal ID
+    /// @return Vector of evidence IDs
+    pub fn get_proposal_evidence(e: Env, proposal_id: u64) -> Vec<u64> {
+        evidence::get_proposal_evidence(&e, proposal_id)
+    }
+
+    /// Get all evidence details for a proposal.
+    ///
+    /// @param e Contract environment
+    /// @param proposal_id Slash proposal ID
+    /// @return Vector of complete Evidence records
+    pub fn get_proposal_evidence_details(e: Env, proposal_id: u64) -> Vec<Evidence> {
+        evidence::get_proposal_evidence_details(&e, proposal_id)
+    }
+
+    /// Check if a hash already exists.
+    ///
+    /// @param e Contract environment
+    /// @param hash Content hash to check
+    /// @return true if hash exists
+    pub fn evidence_hash_exists(e: Env, hash: String) -> bool {
+        evidence::hash_exists(&e, &hash)
+    }
+
+    /// Get total evidence count.
+    ///
+    /// @param e Contract environment
+    /// @return Total number of evidence submissions
+    pub fn get_evidence_count(e: Env) -> u64 {
+        evidence::get_evidence_count(&e)
+    }
+
+    // ==================== Protocol Parameters (Governance-Controlled) ====================
+
     // ==================== Batch Operations ====================
 
     /// Create multiple bonds atomically in a single transaction.
@@ -1236,8 +1320,6 @@ impl CredenceBond {
     pub fn is_locked(e: Env) -> bool {
         Self::check_lock(&e)
     }
-
-    // --- Protocol Parameters (Governance-Controlled) ---
 
     /// Get protocol fee rate in basis points.
     pub fn get_protocol_fee_bps(e: Env) -> u32 {
@@ -1318,6 +1400,8 @@ impl CredenceBond {
     pub fn set_platinum_threshold(e: Env, admin: Address, value: i128) {
         parameters::set_platinum_threshold(&e, &admin, value)
     }
+
+    // ==================== Reentrancy Test Functions ====================
 
     /// Withdraw the full bonded amount back to the identity (callback-based, for reentrancy tests).
     /// Uses a reentrancy guard to prevent re-entrance during external calls.
@@ -1721,6 +1805,7 @@ mod test_events;
 mod test_early_exit_penalty;
 
 #[cfg(test)]
+mod test_evidence;
 mod test_emergency;
 
 #[cfg(test)]
