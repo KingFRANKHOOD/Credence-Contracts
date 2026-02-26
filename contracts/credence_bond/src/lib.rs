@@ -2,6 +2,7 @@
 
 pub mod access_control;
 pub mod early_exit_penalty;
+mod emergency;
 mod fees;
 pub mod governance_approval;
 mod math;
@@ -158,6 +159,149 @@ impl CredenceBond {
     pub fn set_early_exit_config(e: Env, admin: Address, treasury: Address, penalty_bps: u32) {
         Self::require_admin_internal(&e, &admin);
         early_exit_penalty::set_config(&e, treasury, penalty_bps);
+    }
+
+    /// @notice Configure emergency withdrawal controls.
+    /// @dev Requires admin authorization and stores governance approver, treasury, fee, and enabled mode.
+    /// @param admin Admin address authorized to configure emergency settings.
+    /// @param governance Governance address required for elevated approval on emergency withdrawals.
+    /// @param treasury Treasury receiving emergency fees.
+    /// @param emergency_fee_bps Emergency fee in basis points (max 10000).
+    /// @param enabled Initial emergency mode state.
+    pub fn set_emergency_config(
+        e: Env,
+        admin: Address,
+        governance: Address,
+        treasury: Address,
+        emergency_fee_bps: u32,
+        enabled: bool,
+    ) {
+        Self::require_admin_internal(&e, &admin);
+        admin.require_auth();
+        emergency::set_config(&e, governance, treasury, emergency_fee_bps, enabled);
+    }
+
+    /// @notice Toggle emergency mode with elevated governance approval.
+    /// @dev Requires both admin and configured governance approvals.
+    /// @param admin Admin approver.
+    /// @param governance Governance approver.
+    /// @param enabled New emergency mode status.
+    pub fn set_emergency_mode(e: Env, admin: Address, governance: Address, enabled: bool) {
+        Self::require_admin_internal(&e, &admin);
+        let cfg = emergency::get_config(&e);
+        if governance != cfg.governance {
+            panic!("not governance");
+        }
+        admin.require_auth();
+        governance.require_auth();
+        emergency::set_enabled(&e, enabled);
+        emergency::emit_emergency_mode_event(&e, enabled, &admin, &governance);
+    }
+
+    /// @notice Execute emergency withdrawal during crisis mode.
+    /// @dev Requires elevated approval from both admin and governance, applies emergency fee, emits event, and writes immutable audit record.
+    /// @param admin Admin approver for emergency override.
+    /// @param governance Governance approver for emergency override.
+    /// @param amount Gross amount withdrawn from bond.
+    /// @param reason Symbolic reason code for audit trail.
+    /// @return Updated bond after emergency withdrawal.
+    pub fn emergency_withdraw(
+        e: Env,
+        admin: Address,
+        governance: Address,
+        amount: i128,
+        reason: Symbol,
+    ) -> IdentityBond {
+        Self::require_admin_internal(&e, &admin);
+
+        let cfg = emergency::get_config(&e);
+        if governance != cfg.governance {
+            panic!("not governance");
+        }
+        if !cfg.enabled {
+            panic!("emergency mode disabled");
+        }
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
+
+        admin.require_auth();
+        governance.require_auth();
+
+        let key = DataKey::Bond;
+        let mut bond: IdentityBond = e
+            .storage()
+            .instance()
+            .get(&key)
+            .unwrap_or_else(|| panic!("no bond"));
+
+        let available = bond
+            .bonded_amount
+            .checked_sub(bond.slashed_amount)
+            .expect("slashed amount exceeds bonded amount");
+        if amount > available {
+            panic!("insufficient balance for withdrawal");
+        }
+
+        let fee_amount = emergency::calculate_fee(amount, cfg.emergency_fee_bps);
+        let net_amount = amount
+            .checked_sub(fee_amount)
+            .expect("emergency fee exceeds amount");
+
+        let old_tier = tiered_bond::get_tier_for_amount(bond.bonded_amount);
+        bond.bonded_amount = bond
+            .bonded_amount
+            .checked_sub(amount)
+            .expect("withdrawal caused underflow");
+        if bond.slashed_amount > bond.bonded_amount {
+            panic!("slashed amount exceeds bonded amount");
+        }
+        let new_tier = tiered_bond::get_tier_for_amount(bond.bonded_amount);
+        tiered_bond::emit_tier_change_if_needed(&e, &bond.identity, old_tier, new_tier);
+
+        let record_id = emergency::store_record(
+            &e,
+            bond.identity.clone(),
+            amount,
+            fee_amount,
+            net_amount,
+            cfg.treasury.clone(),
+            admin,
+            governance,
+            reason.clone(),
+        );
+
+        emergency::emit_emergency_withdrawal_event(
+            &e,
+            record_id,
+            &bond.identity,
+            amount,
+            fee_amount,
+            net_amount,
+            &reason,
+        );
+
+        e.storage().instance().set(&key, &bond);
+        bond
+    }
+
+    /// @notice Return current emergency configuration.
+    /// @return Emergency configuration struct.
+    pub fn get_emergency_config(e: Env) -> emergency::EmergencyConfig {
+        emergency::get_config(&e)
+    }
+
+    /// @notice Return latest emergency withdrawal record id (0 when none).
+    /// @return Latest record id.
+    pub fn get_latest_emergency_record_id(e: Env) -> u64 {
+        emergency::latest_record_id(&e)
+    }
+
+    /// @notice Return immutable emergency withdrawal record by id.
+    /// @param id Emergency record id.
+    /// @return Emergency withdrawal audit record.
+    pub fn get_emergency_record(e: Env, id: u64) -> emergency::EmergencyWithdrawalRecord {
+        emergency::get_record(&e, id)
     }
 
     pub fn register_attester(e: Env, attester: Address) {
@@ -1242,6 +1386,9 @@ mod test_cooldown;
 
 #[cfg(test)]
 mod test_early_exit_penalty;
+
+#[cfg(test)]
+mod test_emergency;
 
 #[cfg(test)]
 mod test_rolling_bond;
