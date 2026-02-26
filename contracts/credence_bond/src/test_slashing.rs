@@ -13,6 +13,9 @@
 // Comprehensive unit tests for slashing functionality.
 // Covers: successful slash, unauthorized rejection, over-slash prevention,
 // slash history (via events), and slash events.
+//! Comprehensive unit tests for slashing functionality.
+//! Covers: successful slash, unauthorized rejection, over-slash prevention,
+//! slash history (via events), and slash events.
 
 use crate::test_helpers;
 use crate::CredenceBondClient;

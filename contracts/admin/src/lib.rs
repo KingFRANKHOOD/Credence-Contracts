@@ -1,23 +1,6 @@
 #![no_std]
 
-//! # Admin Role Management Contract
-//!
-//! Comprehensive admin role management system with role hierarchy, assignment,
-//! and revocation capabilities for the Credence trust protocol.
-//!
-//! ## Features
-//! - Role hierarchy (Super Admin > Admin > Operator)
-//! - Multiple admin addresses support
-//! - Role assignment and revocation
-//! - Self-removal protection for last admin
-//! - Event emission for all role changes
-//! - Secure authorization checks
-//!
-//! ## Security
-//! - Prevents self-removal of last admin
-//! - Role-based access control
-//! - Audit trail through events
-//! - Input validation and bounds checking
+pub mod pausable;
 
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, Symbol, Vec};
 
@@ -65,6 +48,15 @@ enum DataKey {
     MinAdmins,
     /// Maximum number of admins allowed
     MaxAdmins,
+    // Pause mechanism
+    Paused,
+    PauseSigner(Address),
+    PauseSignerCount,
+    PauseThreshold,
+    PauseProposalCounter,
+    PauseProposal(u64),
+    PauseApproval(u64, Address),
+    PauseApprovalCount(u64),
 }
 
 #[contract]
@@ -104,6 +96,16 @@ impl AdminContract {
         e.storage().instance().set(&DataKey::Initialized, &true);
         e.storage().instance().set(&DataKey::MinAdmins, &min_admins);
         e.storage().instance().set(&DataKey::MaxAdmins, &max_admins);
+
+        // Initialize pause state
+        e.storage().instance().set(&DataKey::Paused, &false);
+        e.storage()
+            .instance()
+            .set(&DataKey::PauseSignerCount, &0_u32);
+        e.storage().instance().set(&DataKey::PauseThreshold, &0_u32);
+        e.storage()
+            .instance()
+            .set(&DataKey::PauseProposalCounter, &0_u64);
 
         // Create initial super admin
         let admin_info = AdminInfo {
@@ -163,6 +165,7 @@ impl AdminContract {
     /// # Events
     /// Emits `admin_added` with the new admin information
     pub fn add_admin(e: Env, caller: Address, new_admin: Address, role: AdminRole) -> AdminInfo {
+        pausable::require_not_paused(&e);
         caller.require_auth();
 
         // Verify caller authorization
@@ -248,6 +251,7 @@ impl AdminContract {
     /// # Events
     /// Emits `admin_removed` with the removed admin information
     pub fn remove_admin(e: Env, caller: Address, admin_to_remove: Address) {
+        pausable::require_not_paused(&e);
         caller.require_auth();
 
         // Get admin info
@@ -335,6 +339,7 @@ impl AdminContract {
         admin_address: Address,
         new_role: AdminRole,
     ) -> AdminInfo {
+        pausable::require_not_paused(&e);
         caller.require_auth();
 
         // Get current admin info
@@ -413,6 +418,7 @@ impl AdminContract {
     /// # Events
     /// Emits `admin_deactivated` with the deactivated admin information
     pub fn deactivate_admin(e: Env, caller: Address, admin_address: Address) {
+        pausable::require_not_paused(&e);
         caller.require_auth();
 
         let mut admin_info: AdminInfo = e
@@ -455,6 +461,7 @@ impl AdminContract {
     /// # Events
     /// Emits `admin_reactivated` with the reactivated admin information
     pub fn reactivate_admin(e: Env, caller: Address, admin_address: Address) {
+        pausable::require_not_paused(&e);
         caller.require_auth();
 
         let mut admin_info: AdminInfo = e
@@ -659,6 +666,41 @@ impl AdminContract {
 
 #[cfg(test)]
 mod test;
+
+// Pause mechanism entrypoints
+#[contractimpl]
+impl AdminContract {
+    pub fn is_paused(e: Env) -> bool {
+        pausable::is_paused(&e)
+    }
+
+    pub fn pause(e: Env, caller: Address) -> Option<u64> {
+        pausable::pause(&e, &caller)
+    }
+
+    pub fn unpause(e: Env, caller: Address) -> Option<u64> {
+        pausable::unpause(&e, &caller)
+    }
+
+    pub fn set_pause_signer(e: Env, admin: Address, signer: Address, enabled: bool) {
+        pausable::set_pause_signer(&e, &admin, &signer, enabled)
+    }
+
+    pub fn set_pause_threshold(e: Env, admin: Address, threshold: u32) {
+        pausable::set_pause_threshold(&e, &admin, threshold)
+    }
+
+    pub fn approve_pause_proposal(e: Env, signer: Address, proposal_id: u64) {
+        pausable::approve_pause_proposal(&e, &signer, proposal_id)
+    }
+
+    pub fn execute_pause_proposal(e: Env, proposal_id: u64) {
+        pausable::execute_pause_proposal(&e, proposal_id)
+    }
+}
+
+#[cfg(test)]
+mod test_pausable;
 
 #[cfg(test)]
 mod test_basic;
