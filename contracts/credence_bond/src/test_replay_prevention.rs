@@ -1,12 +1,10 @@
 //! Tests for replay attack prevention: nonce validation and rejection of replayed transactions.
 
-#![cfg(test)]
-
 use crate::*;
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{Env, String};
 
-fn setup(e: &Env) -> (CredenceBondClient, soroban_sdk::Address) {
+fn setup(e: &Env) -> (CredenceBondClient<'_>, soroban_sdk::Address) {
     e.mock_all_auths();
     let contract_id = e.register_contract(None, CredenceBond);
     let client = CredenceBondClient::new(e, &contract_id);
