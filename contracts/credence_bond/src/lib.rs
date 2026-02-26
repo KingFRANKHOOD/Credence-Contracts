@@ -12,6 +12,8 @@ mod parameters;
 mod rolling_bond;
 mod slash_history;
 mod slashing;
+mod tiered_bond;
+mod validation;
 pub mod tiered_bond;
 mod validation;
 mod weighted_attestation;
@@ -367,6 +369,9 @@ impl CredenceBond {
         is_rolling: bool,
         notice_period_duration: u64,
     ) -> IdentityBond {
+        // Validate bond amount before creating the bond
+        validation::validate_bond_amount(amount);
+        
         // Validate bond duration is within allowed range
         validation::validate_bond_duration(duration);
         Self::create_bond_with_rolling(
@@ -897,6 +902,15 @@ impl CredenceBond {
     }
 
     pub fn top_up(e: Env, amount: i128) -> IdentityBond {
+        // Validate the top-up amount meets minimum requirements
+        if amount < validation::MIN_BOND_AMOUNT {
+            panic!(
+                "top-up amount below minimum required: {} (minimum: {})",
+                amount,
+                validation::MIN_BOND_AMOUNT
+            );
+        }
+        
         let key = DataKey::Bond;
         let mut bond: IdentityBond = e
             .storage()
@@ -904,11 +918,22 @@ impl CredenceBond {
             .get(&key)
             .unwrap_or_else(|| panic!("no bond"));
 
+        // Calculate the new bonded amount after top-up
+        let new_bonded_amount = bond
+        // Perform top-up with overflow protection
+        bond.bonded_amount = bond
         // Overflow check before token transfer (CEI pattern)
         let new_bonded = bond
             .bonded_amount
             .checked_add(amount)
             .expect("top-up caused overflow");
+            
+        // Validate the new total bonded amount is within limits
+        validation::validate_bond_amount(new_bonded_amount);
+
+        // Perform top-up with overflow protection
+        let old_tier = tiered_bond::get_tier_for_amount(bond.bonded_amount);
+        bond.bonded_amount = new_bonded_amount;
 
         let token: Address = e
             .storage()
@@ -1353,6 +1378,7 @@ mod test;
 mod test_attestation;
 
 #[cfg(test)]
+mod test_validation;
 mod test_attestation_types;
 
 #[cfg(test)]
