@@ -125,6 +125,8 @@ pub enum BondTier {
     // Bond creation fee
     FeeTreasury,
     FeeBps,
+    // USDC token used for bond operations requiring token transfers.
+    BondToken,
 }
 
 #[contract]
@@ -352,7 +354,7 @@ impl CredenceBond {
             .instance()
             .get(&DataKey::Admin)
             .unwrap_or_else(|| panic!("not initialized"));
-        require_admin(&e, &admin);
+        Self::require_admin_internal(&e, &admin);
         admin.require_auth();
         add_verifier_role(&e, &admin, &attester);
         e.storage()
@@ -368,7 +370,7 @@ impl CredenceBond {
             .instance()
             .get(&DataKey::Admin)
             .unwrap_or_else(|| panic!("not initialized"));
-        require_admin(&e, &admin);
+        Self::require_admin_internal(&e, &admin);
         admin.require_auth();
         remove_verifier_role(&e, &admin, &attester);
         e.storage()
@@ -950,6 +952,25 @@ impl CredenceBond {
             .set(&Self::callback_key(&e), &callback);
     }
 
+    /// Configure the USDC token contract used by `increase_bond`.
+    /// Only admin may set this.
+    pub fn set_bond_token(e: Env, admin: Address, token: Address) {
+        Self::require_admin_internal(&e, &admin);
+        e.storage().instance().set(&DataKey::BondToken, &token);
+    }
+
+    /// Return configured USDC token contract address, if any.
+    pub fn get_bond_token(e: Env) -> Option<Address> {
+        e.storage().instance().get(&DataKey::BondToken)
+    }
+
+    pub fn is_locked(e: Env) -> bool {
+        e.storage()
+            .instance()
+            .get(&Self::lock_key(&e))
+            .unwrap_or(false)
+    }
+
     pub fn get_slash_proposal(
         e: Env,
         proposal_id: u64,
@@ -1029,6 +1050,66 @@ impl CredenceBond {
 
         e.storage().instance().set(&key, &bond);
         bond
+    }
+
+    /// Increase the bond with additional USDC from the caller.
+    /// Requires caller authentication and ownership of the existing bond.
+    /// Transfers USDC from caller to this contract using token allowance, then
+    /// updates storage and emits `bond_increased`.
+    ///
+    /// Security notes:
+    /// - Amount must be strictly positive.
+    /// - Arithmetic is checked for overflow.
+    /// - Reentrancy guard protects this external token interaction.
+    ///
+    /// Panics if no bond exists, if caller is not owner, if token is not configured,
+    /// or if transfer/overflow checks fail.
+    pub fn increase_bond(e: Env, caller: Address, amount: i128) -> IdentityBond {
+        caller.require_auth();
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
+        Self::with_reentrancy_guard(&e, || {
+            let key = DataKey::Bond;
+            let mut bond = e
+                .storage()
+                .instance()
+                .get::<_, IdentityBond>(&key)
+                .unwrap_or_else(|| panic!("no bond"));
+
+            if bond.identity != caller {
+                panic!("not bond owner");
+            }
+
+            let token_addr: Address = e
+                .storage()
+                .instance()
+                .get(&DataKey::BondToken)
+                .unwrap_or_else(|| panic!("bond token not configured"));
+
+            let old_amount = bond.bonded_amount;
+            let new_amount = old_amount
+                .checked_add(amount)
+                .expect("bond increase caused overflow");
+
+            let token_client = TokenClient::new(&e, &token_addr);
+            let contract_address = e.current_contract_address();
+            token_client.transfer_from(&contract_address, &caller, &contract_address, &amount);
+
+            let old_tier = tiered_bond::get_tier_for_amount(old_amount);
+            let new_tier = tiered_bond::get_tier_for_amount(new_amount);
+
+            bond.bonded_amount = new_amount;
+            e.storage().instance().set(&key, &bond);
+
+            tiered_bond::emit_tier_change_if_needed(&e, &bond.identity, old_tier, new_tier);
+            e.events().publish(
+                (Symbol::new(&e, "bond_increased"), bond.identity.clone()),
+                (amount, old_amount, new_amount),
+            );
+
+            bond
+        })
     }
 
     pub fn extend_duration(e: Env, additional_duration: u64) -> IdentityBond {
@@ -1549,6 +1630,9 @@ mod test_fees;
 
 #[cfg(test)]
 mod integration;
+
+#[cfg(test)]
+mod test_increase_bond;
 
 #[cfg(test)]
 mod security;
